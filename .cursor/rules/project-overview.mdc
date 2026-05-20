@@ -1,0 +1,44 @@
+---
+description: WeaveGate 项目定位与品牌命名（全局）
+alwaysApply: true
+---
+
+# WeaveGate 项目概览
+
+**WeaveGate** 是跨平台前端网关：静态资源、反向代理、round-robin、WebSocket/SSE。基于 Hyper 0.14 + Tokio，配置用 CLI / 环境变量 / TOML。
+
+## 命名（必须一致）
+
+| 项 | 值 |
+|----|-----|
+| 显示名 | WeaveGate |
+| Cargo 包 / crate | `weavegate` |
+| 二进制 | `weavegate`（仅这一个，无 `edgegate`、`static-web-server` 别名） |
+| 默认配置 | `weavegate.toml` |
+| 示例配置 | `weavegate.example.toml` |
+| 缩写（日志可选） | WG |
+
+不要在新代码/文档中引入 `edgegate`、`EdgeGate`、`sws.toml` 作为主路径；`sws.toml` 仅作弃用兼容时可提及。
+
+## 定位
+
+- 企业内 / 桌面壳：本机 `weavegate` + 静态 `root/{appId}/`，API 经同源 `/api/**` 转发，避免 CORS。
+- 第二跳用 Hyper `Client`，**不要**为代理引入 `reqwest` 等新 HTTP 客户端栈。
+
+## 验证命令
+
+```bash
+cargo build --release
+cargo test --test proxy --test routes_bootstrap
+ls target/release/weavegate
+```
+
+## 代码库
+
+- GitHub：[G94P08V95T/weave-gate](https://github.com/G94P08V95T/weave-gate)
+- Clone：`git clone https://github.com/G94P08V95T/weave-gate.git`
+
+## 参考
+
+- 控制面契约：`docs/routes-bootstrap-v1.md`
+- 启动脚本：`scripts/go.sh`

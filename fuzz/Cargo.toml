@@ -1,0 +1,21 @@
+[package]
+name = "weavegate-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+arbitrary = { version = "1",  features = ["derive"] }
+libfuzzer-sys = { version = "0.4", features = ["arbitrary-derive"] }
+weavegate = { path = ".." }
+hyper = { version = "0.14", features = ["stream", "http1", "http2", "tcp", "server"] }
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "static_files"
+path = "src/static_files.rs"

@@ -1,0 +1,19 @@
+[general]
+host = "127.0.0.1"
+port = 0
+root = "tests/fixtures/public"
+log-level = "error"
+compression = false
+compression-static = false
+
+[advanced]
+
+[[advanced.proxies]]
+source = "/api/**"
+target = "http://127.0.0.1:0"
+strip-prefix = "/api"
+
+[[advanced.proxies]]
+source = "/auth/**"
+target = "http://127.0.0.1:0"
+strip-prefix = "/auth"

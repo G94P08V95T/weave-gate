@@ -1,0 +1,69 @@
+# Example: WeaveGate as a frontend gateway (reverse proxy + static files)
+#
+# Usage:
+#   weavegate -w weavegate.example.toml
+#
+# Browser requests same origin (e.g. http://localhost:8787) — no CORS for /api and /auth.
+
+[general]
+host = "127.0.0.1"
+port = 8787
+root = "./docker/public"
+# Proxy-heavy deployments: use "warn" to avoid per-request info logs on the hot path
+log-level = "warn"
+# I/O-bound reverse proxy: try 1 (one Tokio worker per CPU) before the CLI default of 2
+threads-multiplier = 1
+compression = true
+
+[advanced]
+# Trust mkcert (or other local CA) for HTTPS upstreams and routes bootstrap.
+# Install: mkcert -install   Path: $(mkcert -CAROOT)/rootCA.pem
+# [advanced.proxy-tls]
+# ca-file = "~/.local/share/mkcert/rootCA.pem"
+# disable-webpki-roots = false   # default: mkcert CA + public WebPKI roots
+
+# Upstream HTTP connection pool (second hop performance)
+proxy-pool-max-idle-per-host = 32
+proxy-pool-idle-timeout-secs = 90
+# Match API paths before redirects/rewrites when appropriate
+proxy-first = true
+# WebSocket / upgrade tunnels; 0 = unlimited
+max-upgrade-tunnels = 10000
+
+# REST API -> single instance (http:// or https:// upstreams supported)
+[[advanced.proxies]]
+name = "api-service"
+source = "/api/**"
+target = "http://127.0.0.1:3000"
+strip-prefix = "/api"
+
+# Auth service -> multiple instances, round-robin load balancing
+[[advanced.proxies]]
+name = "auth-service"
+source = "/auth/**"
+targets = [
+  "http://127.0.0.1:4001",
+  "http://127.0.0.1:4002",
+  "http://127.0.0.1:4003",
+]
+strip-prefix = "/auth"
+
+# WebSocket / long-lived HTTP (SSE) are forwarded automatically when paths match.
+# Upgrade requests (Connection: upgrade) are tunneled bidirectionally.
+
+# Optional: fetch proxy rules from a control plane at startup (v1 API).
+# See docs/routes-bootstrap-v1.md for the JSON contract (A: per-service paths, B: /api/** gateway).
+# [advanced.routes-bootstrap]
+# url = "https://control.example.com/api/v1/weavegate/routes"
+# token-env = "WEAVEGATE_ROUTES_TOKEN"
+# timeout-secs = 5
+# cache-path = "./routes.cache.json"
+# on-failure = "cache-then-file"
+# client-id = "desktop"
+
+# Optional: match a specific Host header (virtual host style)
+# [[advanced.proxies]]
+# host = "app.example.com"
+# source = "/graphql/**"
+# target = "https://api.internal.example.com"
+# strip-prefix = "/graphql"

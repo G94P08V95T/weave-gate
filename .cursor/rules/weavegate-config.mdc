@@ -1,0 +1,50 @@
+---
+description: weavegate.toml 与示例配置约定
+globs: "**/*.{toml,TOML}"
+alwaysApply: false
+---
+
+# WeaveGate 配置
+
+## 文件
+
+| 文件 | 用途 |
+|------|------|
+| `weavegate.toml` | 运行时默认（CLI `-w` / `--config-file` 默认 `./weavegate.toml`） |
+| `weavegate.example.toml` | 示例与注释模板，改功能时同步更新 |
+
+## 代理场景建议（来自压测与并发优化计划）
+
+| 参数 | 建议 | 原因 |
+|------|------|------|
+| `log-level` | `warn` 或 `error` | 代理热路径避免 per-request `info` |
+| `threads-multiplier` | 先试 `1` | 纯 I/O 转发时 2×CPU 可能多上下文切换 |
+| `compression` | API 为主时可关 | 减少 CPU |
+| `proxy-first` | `true`（API 网关） | 少跑 redirects/rewrites |
+| 连接池 | 见 `[advanced]` 的 `proxy-pool-*` | 第二跳复用连接 |
+
+## 示例片段
+
+```toml
+[[advanced.proxies]]
+name = "api-service"
+source = "/api/**"
+target = "http://127.0.0.1:3000"
+strip-prefix = "/api"
+```
+
+```toml
+# [advanced.routes-bootstrap]
+# url = "https://control.example.com/api/v1/weavegate/routes"
+# token-env = "WEAVEGATE_ROUTES_TOKEN"
+# on-failure = "cache-then-file"
+```
+
+本地 HTTPS 上游 / bootstrap：可选 `[advanced.proxy-tls]` + mkcert `ca-file`（见 example 注释）。
+
+## 启动
+
+```bash
+./target/release/weavegate -w weavegate.example.toml
+./scripts/go.sh
+```

@@ -1,0 +1,40 @@
+---
+description: 测试与 bench-proxy 压测约定
+globs: "{tests/**,scripts/**,src/bin/bench_echo.rs,benches/**}"
+alwaysApply: false
+---
+
+# 测试与压测
+
+## 集成测试
+
+| 测试 | 覆盖 |
+|------|------|
+| `cargo test --test proxy` | 转发、轮询、WebSocket 101、URI 模板等 |
+| `cargo test --test routes_bootstrap` | 控制面 v1 拉取、特异性排序、`cache-then-file` |
+
+无 `routes-bootstrap` 配置时行为应与仅 TOML 规则一致。
+
+## bench-proxy v2
+
+脚本：`scripts/bench-proxy.sh`
+
+- 上游：**Rust** `bench-echo`（`src/bin/bench_echo.rs`），**不要**用 Python `HTTPServer`（易 502/reset，比值失真）。
+- 压测时临时配置 `log-level = "error"`。
+- 对比：直连 `http://127.0.0.1:13000/...` vs 经网关 `http://127.0.0.1:18787/api/...`。
+- 关注：**RPS 比值**（via/direct）、**P50/P99**、**Non-2xx**（应为 0）。
+- 极限 loopback echo 下比值 ~0.45–0.5 常见（多一跳 + 完整中间件链），不等于功能错误。
+
+```bash
+cargo build --release
+./scripts/bench-proxy.sh
+```
+
+可调：`WRK_CONNECTIONS`、`THREADS_MULTIPLIER`、`WRK_WARMUP`。
+
+## 回归清单
+
+```bash
+cargo test --test proxy --test routes_bootstrap
+cargo build --release
+```

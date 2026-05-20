@@ -1,0 +1,32 @@
+---
+description: Rust 源码约定（WeaveGate / Hyper / Tokio）
+globs: "**/*.rs"
+alwaysApply: false
+---
+
+# Rust 约定
+
+## Crate 与模块
+
+- 库入口：`weavegate::`（`src/lib.rs`），二进制 `src/bin/server.rs` → `weavegate`。
+- 代理：`src/proxy.rs`（转发、连接池、`resolve_rules`）、`src/proxy_compile.rs`、`src/proxy_sort.rs`、`src/proxy_client.rs`。
+- 启动拉取路由：`src/routes/`（`document.rs`、`bootstrap.rs`）。
+- 设置：`src/settings/file.rs`（TOML 类型）、`src/settings/mod.rs`（解析与 `Advanced`）。
+
+## 代理规则生命周期
+
+1. `Settings::parse_from` 填充 `proxy_defs`（原始 `file::Proxy`），**不在此阶段**编译 `ProxyRule`。
+2. `server.rs` 的 `start_server` 在 `proxy::init` **之前**调用 `proxy::resolve_rules`。
+3. `resolve_rules`：合并 bootstrap → `sort_proxy_defs_by_specificity` → `compile_proxy_rules` → 写入 `advanced.proxies`。
+4. 运行时 `find_rule`：**列表顺序第一条 glob 命中**（故必须先按路径特异性排序）。
+
+## 实现原则
+
+- 异步 I/O 用 Tokio；静态文件用 `tokio::fs`（勿在热路径用同步 `File::open` 占 blocking 池）。
+- 代理匹配日志用 `debug`，避免生产 `info` 刷屏。
+- 新功能默认走 `feature = "proxy"`（Cargo.toml default features）。
+- 改动代理/启动链后跑：`cargo test --test proxy --test routes_bootstrap`。
+
+## 文件头
+
+新文件注释使用 **WeaveGate**，勿写 Static Web Server / EdgeGate。

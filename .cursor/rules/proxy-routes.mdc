@@ -1,0 +1,43 @@
+---
+description: 反向代理、路由 bootstrap 与控制面 v1
+globs: "{src/proxy*.rs,src/routes/**,src/handler.rs,src/server.rs,src/settings/**,docs/routes-bootstrap-v1.md}"
+alwaysApply: false
+---
+
+# 代理与启动路由
+
+## TOML 规则（`[[advanced.proxies]]`）
+
+| 字段 | 说明 |
+|------|------|
+| `source` | glob，以 `/` 开头，禁止 `..` |
+| `target` / `targets` | 互斥；`http://` 或 `https://` |
+| `strip-prefix` | 可选，以 `/` 开头 |
+| `host` | 可选虚拟主机 |
+| `name` | 日志标识 |
+
+多 `targets` 时 round-robin（`AtomicUsize`）。
+
+## 控制面 v1（`[advanced.routes-bootstrap]`）
+
+- 契约文档：`docs/routes-bootstrap-v1.md`；响应 `version` 必须为 `1`。
+- 启动时 GET `url`，`User-Agent: weavegate/<version>`；token **仅**经 `token-env` 环境变量，不写进 TOML。
+- `on-failure`：`cache-then-file`（默认）| `fail` | `file-only`。
+- 合并：远程规则 + 本地 `[[advanced.proxies]]` → **统一** `sort_proxy_defs_by_specificity`（路径越长、`*` 越少越靠前）。
+- A/B：细路径（如 `/app/api/users/**`）必须排在兜底（`/app/api/**`）之前；即使控制面顺序错误，客户端也会重排。
+- 缓存：原子写 `cache-path`（tmp + rename）。
+
+## `[advanced]` 性能相关
+
+```toml
+proxy-pool-max-idle-per-host = 32
+proxy-pool-idle-timeout-secs = 90
+proxy-first = true          # API 优先走代理，少跑无关中间件
+max-upgrade-tunnels = 10000 # 0 = 不限
+```
+
+WebSocket：`Connection: upgrade` → `101` 后 `copy_bidirectional`；SSE 识别 `Accept: text/event-stream`。
+
+## 挂载点
+
+`resolve_rules` 必须在 `proxy::init` 之前（`src/server.rs`）。测试可直接构造 `ProxyRule` 绕过 bootstrap（`tests/proxy.rs`）。
